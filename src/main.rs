@@ -1,3 +1,7 @@
+/**
+command line 
+*/
+
 use std::fs;
 use std::io::{self, Write};
 
