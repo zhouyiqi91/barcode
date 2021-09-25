@@ -1,5 +1,5 @@
-/**
-command line 
+/*!
+Tools for handling barcode and UMI.
 */
 
 use std::fs;
