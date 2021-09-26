@@ -3,6 +3,9 @@ core barcode crate
 */
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
+use std::io;
+use std::fs;
 
 use regex::Regex;
 use itertools::{Itertools};
@@ -10,7 +13,8 @@ use itertools::{Itertools};
 
 
 /** 
-Parse a pattern string into Hashmap 
+Parse a pattern string into Hashmap.
+
 - C: cell barcode
 - L: linker
 - U: UMI
@@ -22,11 +26,11 @@ Parse a pattern string into Hashmap
 let pattern = "C8L16C8";
 let dict = barcode::parse_pattern(pattern);
 let pattern_c = dict.get(&'C').unwrap();
-let answer_c: Vec<[u8;2]> = vec![[0, 8], [32, 40]];
+let answer_c: Vec<[usize;2]> = vec![[0, 8], [32, 40]];
 assert_eq!(pattern_c, &answer_c);
 ```
 */
-pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[u8;2]>> {
+pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[usize;2]>> {
     let mut dict = HashMap::new();
 
     let re = Regex::new(r"([CLUNT])(\d+)").unwrap();
@@ -34,7 +38,7 @@ pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[u8;2]>> {
     let mut start = 0;
     for cap in re.captures_iter(pattern) {
         let symbol: char = cap[1].parse().unwrap();
-        let length: u8 = cap[2].parse().unwrap();
+        let length: usize = cap[2].parse().unwrap();
         let end = start + length;
         dict.entry(symbol).or_insert(Vec::new()).push([start, end]);
         start += end;
@@ -43,7 +47,7 @@ pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[u8;2]>> {
 }
 
 /**
-Returns all sequences with at most n_mismatch compared to seq.
+Find all sequences with at most n_mismatch compared to seq.
  */
 pub fn findall_mismatch(seq: &str, n_mismatch: usize) -> HashSet<String> {
     let allowed_bases="ACGTN".chars();
@@ -62,7 +66,35 @@ pub fn findall_mismatch(seq: &str, n_mismatch: usize) -> HashSet<String> {
             result.insert(product.into_iter().collect());
         }
     }
-    return result;
+    result
+}
+
+/**
+Use findall_mismatch on a vector of sequences.
+
+Returns a Hashmap where
+- key: original sequence(e.g. barcode in whitelist)
+- value: all sequences from function findall_mismatch: with at most n_mismatch compared to key
+ */
+pub fn get_mismatch_dict(seq_list: Vec<String>, n_mismatch: usize) -> HashMap<String, HashSet<String>> {
+    let mut mismatch_dict = HashMap::new();
+
+    for seq in seq_list {
+        mismatch_dict.insert(seq.clone(), findall_mismatch(&seq, n_mismatch));
+    }
+    mismatch_dict
+}
+
+/**
+Read a file with one column into a HashSet.
+ */
+pub fn read_one_col<P: AsRef<Path>>(path: P) -> HashSet<String> {
+    let mut set = HashSet::new();
+    let content = fs::read_to_string(path).unwrap();
+    for line in content.lines() {
+        set.insert(line.to_string());
+    }
+    set
 }
 
 
@@ -74,7 +106,7 @@ mod tests {
         let pattern = "C8L16C8";
         let dict = parse_pattern(pattern);
         let pattern_c = dict.get(&'C').unwrap();
-        let answer_c: Vec<[u8;2]> = vec![[0, 8], [32, 40]];
+        let answer_c: Vec<[usize;2]> = vec![[0, 8], [32, 40]];
         assert_eq!(pattern_c, &answer_c);
     }
 
@@ -92,6 +124,13 @@ mod tests {
         let seq = "ACG".to_string();
         let value = findall_mismatch(&seq, 1);
         assert_eq!(value, answer);
+    }
+
+    #[test]
+    fn test_read_one_col() {
+        let path = "./Cargo.toml";
+        let set = read_one_col(path);
+        assert!(set.contains("[package]"));
     }
 }
     

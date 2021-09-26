@@ -9,6 +9,9 @@ use log::{info, warn};
 use simplelog::*;
 use structopt::StructOpt;
 use anyhow::{Context, Result};
+use bio::io::fastq;
+
+use barcode;
 
 /// cli
 #[derive(StructOpt)]
@@ -16,13 +19,13 @@ struct Cli {
     /// fastq 1
     #[structopt(long = "fq1")]
     fq1: String,
-    /// fastq2
+    /// fastq 2
     #[structopt(long = "fq2")]
     fq2: String,
 }
 
 
-fn main() -> Result<()>{
+fn main() {
 
     // logger
     CombinedLogger::init(
@@ -33,18 +36,21 @@ fn main() -> Result<()>{
     ).unwrap();
 
     //IO
-    let out_fq1_file = "out_1.fq";
-    let out_fq1 = fs::File::create(out_fq1_file).unwrap();
-    let mut handle = io::BufWriter::new(out_fq1);
+    let out_fq2_file = "out_2.fq";
+    let mut out_fastq2 = fastq::Writer::to_file(out_fq2_file).unwrap();
+
     let args = Cli::from_args();
 
-    info!("read fastq1");
-    warn!("warn you!!!!!");
-    let fq1 = fs::read_to_string(&args.fq1)
-        .with_context(|| format!("could not read file `{}`", &args.fq1))?;
-    write_fastq(fq1, &mut handle);
-    
-    Ok(())
+    let fastq1 = fastq::Reader::from_file(&args.fq1).unwrap().records();
+    let mut fastq2 = fastq::Reader::from_file(&args.fq2).unwrap().records();
+
+    for result in fastq1 {
+        let record1 = result.expect("Error during fastq record parsing");
+        let record2 = fastq2.next().unwrap().unwrap();
+
+        out_fastq2.write_record(&record2).unwrap();
+    }
+
 }
 
 
