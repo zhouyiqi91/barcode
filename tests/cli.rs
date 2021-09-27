@@ -27,8 +27,13 @@ fn test_main() -> Result<(), Box<dyn std::error::Error>> {
         .arg("test_1.fq")
         .arg("--fq2")
         .arg("test_2.fq")
+        .arg("--pattern")
+        .arg("C8L16C8L16C8L1U12T18")
+        .arg("--whitelist")
+        .arg("whitelist.tsv")
         .output()
-        .expect("failed");
+        .unwrap();
+
 
     Ok(())
 }
