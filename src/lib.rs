@@ -1,5 +1,5 @@
 /*! 
-core barcode crate
+Useful functions
 */
 
 use std::collections::{HashMap, HashSet};
@@ -10,23 +10,25 @@ use std::fs;
 use regex::Regex;
 use itertools::{Itertools};
 
+ 
+/// Parse a pattern string into Hashmap.
+///
+/// - C: cell barcode
+/// - L: linker
+/// - U: UMI
+/// - T: poly T
+/// - N: placeholder
+/// 
+/// # Example
+/// ```rust
+/// let pattern = "C8L16C8L16C8L1U12T18";
+/// let dict = barcode::parse_pattern(pattern);
+/// let pattern_c = dict.get(&'C').unwrap();
+/// let answer_c: Vec<[usize;2]> = vec![[0, 8], [24, 32], [48, 56]];
+/// assert_eq!(pattern_c, &answer_c);
+/// ```
+/// 
 
-
-/** 
-Parse a pattern string into Hashmap.
-
-- C: cell barcode
-- L: linker
-- U: UMI
-- T: poly T
-- N: placeholder
-
-# Example
-```rust
-let pattern = "C8L16C8L16C8L1U12T18";
-let dict = barcode::parse_pattern(pattern);
-```
-*/
 pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[usize;2]>> {
     let mut dict = HashMap::new();
 
@@ -43,9 +45,26 @@ pub fn parse_pattern(pattern: &str) -> HashMap<char, Vec<[usize;2]>> {
     dict
 }
 
-/**
-Find all sequences with at most n_mismatch compared to seq.
- */
+
+/// Find all sequences with at most n_mismatch compared to seq.
+/// # Example
+/// 
+/// ```
+/// use std::collections::HashSet;
+/// 
+/// let mut answer = HashSet::new();
+/// let answer_array = [
+///     "TCG", "AAG", "ACC", "ATG", "ACT", "ACN", "GCG", 
+///     "ANG", "ACA", "ACG", "CCG", "AGG", "NCG",
+/// ];
+/// for s in answer_array {
+///     answer.insert(s.to_string());
+/// }
+/// 
+/// let seq = "ACG".to_string();
+/// let value = barcode::findall_mismatch(&seq, 1);
+/// assert_eq!(value, answer);
+/// ```
 pub fn findall_mismatch(seq: &str, n_mismatch: usize) -> HashSet<String> {
     let allowed_bases="ACGTN".chars();
     let mut result = HashSet::new();
@@ -66,13 +85,24 @@ pub fn findall_mismatch(seq: &str, n_mismatch: usize) -> HashSet<String> {
     result
 }
 
-/**
-Use findall_mismatch on a set of sequences.
-
-Returns a Hashmap where
-- key: mismatch sequence
-- value: original sequence(e.g. barcode in whitelist)
- */
+/// Use findall_mismatch on a set of sequences.
+/// 
+/// Returns a Hashmap where
+/// - key: mismatch sequence
+/// - value: original sequence(e.g. barcode in whitelist)
+/// # Example
+/// 
+/// ```
+/// use std::collections::HashSet;
+/// 
+/// let mut seq_list = HashSet::new();
+/// seq_list.insert("AACGTGAT".to_string());
+/// seq_list.insert("AAACATCG".to_string());
+/// let mismatch_dict = barcode::get_mismatch_dict(&seq_list, 1);
+/// let key = "AACGTGAA".to_string();
+/// let value = "AACGTGAT".to_string();
+/// assert_eq!(mismatch_dict.get(&key).unwrap(), &value);
+/// ```
 pub fn get_mismatch_dict(seq_list: &HashSet<String>, n_mismatch: usize) -> HashMap<String, String> {
     let mut mismatch_dict = HashMap::new();
 
@@ -84,20 +114,15 @@ pub fn get_mismatch_dict(seq_list: &HashSet<String>, n_mismatch: usize) -> HashM
     mismatch_dict
 }
 
-#[test]
-fn test_get_mismatch_dict() {
-    let mut seq_list = HashSet::new();
-    seq_list.insert("AACGTGAT".to_string());
-    seq_list.insert("AAACATCG".to_string());
-    let mismatch_dict = get_mismatch_dict(&seq_list, 1);
-    let key = "AACGTGAA".to_string();
-    let value = "AACGTGAT".to_string();
-    assert_eq!(mismatch_dict.get(&key).unwrap(), &value);
-}
 
-/**
-Read a file with one column into a HashSet.
- */
+/// Read a file with one column into a HashSet.
+/// # Example
+/// 
+/// ```
+/// let path = "./Cargo.toml";
+/// let set = barcode::read_one_col(path);
+/// assert!(set.contains("[package]"));
+/// ```
 pub fn read_one_col<P: AsRef<Path>>(path: P) -> HashSet<String> {
     let mut set = HashSet::new();
     let content = fs::read_to_string(path).unwrap();
@@ -106,6 +131,7 @@ pub fn read_one_col<P: AsRef<Path>>(path: P) -> HashSet<String> {
     }
     set
 }
+
 
 /// Get str slice of pattern from sequence
 pub fn get_pattern_seq<'a>(seq: &'a str, pattern_dict: &HashMap<char, Vec<[usize;2]>>, symbol: char) 
@@ -118,10 +144,9 @@ pub fn get_pattern_seq<'a>(seq: &'a str, pattern_dict: &HashMap<char, Vec<[usize
 }
 
 
-/**
-Check if a sequence's pattern_seq is in mismatch_dict
-*/ 
+/// Check if a sequence's pattern_seq is in mismatch_dict
 pub fn check_seq_mismatch(pattern_seq: Vec<&str>, mismatch_dict_list: &Vec<HashMap<String, String>>)
+
     -> Option<String> {
         for (index, sub_seq) in pattern_seq.iter().enumerate() {
             let mismatch_dict = &mismatch_dict_list[index];
@@ -135,43 +160,9 @@ pub fn check_seq_mismatch(pattern_seq: Vec<&str>, mismatch_dict_list: &Vec<HashM
         Some(corrected_seq)
     }
 
-#[test]
-fn test_check_seq_mismatch() {
-}
-
+/// tests
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_parse_pattern(){
-        let pattern = "C8L16C8L16C8L1U12T18";
-        let dict = parse_pattern(pattern);
-        let pattern_c = dict.get(&'C').unwrap();
-        let answer_c: Vec<[usize;2]> = vec![[0, 8], [24, 32], [48, 56]];
-        assert_eq!(pattern_c, &answer_c);
-    }
-
-    #[test]
-    fn test_findall_mismatch(){
-        let mut answer = HashSet::new();
-        let answer_array = [
-            "TCG", "AAG", "ACC", "ATG", "ACT", "ACN", "GCG", 
-            "ANG", "ACA", "ACG", "CCG", "AGG", "NCG",
-        ];
-        for s in answer_array {
-            answer.insert(s.to_string());
-        }
-
-        let seq = "ACG".to_string();
-        let value = findall_mismatch(&seq, 1);
-        assert_eq!(value, answer);
-    }
-
-    #[test]
-    fn test_read_one_col() {
-        let path = "./Cargo.toml";
-        let set = read_one_col(path);
-        assert!(set.contains("[package]"));
-    }
 }
     

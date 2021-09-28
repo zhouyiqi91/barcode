@@ -77,14 +77,3 @@ fn main() {
 }
 
 
-mod tests {
-    use super::*;
-
-    #[test]
-    fn vec_test(){
-        let mut writer = Vec::new();
-        writer.push('a' as u8);
-        assert_eq!(writer, b"a");
-    }
-}
-
